@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>📱 Servidor Móvil - Captura y envío de frames</title>
+  <style>body { font-family: sans-serif; text-align:center; } video { width:90%; border: 2px solid #444; margin-top:10px; }</style>
+</head>
+<body>
+  <h2>📱 Servidor Móvil: captura y envío de frames</h2>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on('connect', () => {
+      console.log('✅ Socket conectado al servidor');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Error conexión Socket:', err);
+    });
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Intentar obtener la cámara
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(stream => {
+        console.log('📽️ Cámara accedida correctamente');
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch(error => {
+        alert('❌ No se pudo acceder a la cámara: ' + error.message);
+        console.error('❌ Error al acceder a la cámara:', error);
+      });
+
+    video.addEventListener('loadedmetadata', () => {
+      console.log('📽️ Video listo, iniciando captura de frames');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      setInterval(() => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = canvas.toDataURL('image/jpeg', 0.7);
+        socket.emit('frame', { image: frame });
+        console.log('📤 Frame enviado al servidor');
+      }, 100);
+    });
+  </script>
+</body>
+</html>
