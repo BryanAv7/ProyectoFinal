@@ -2,26 +2,20 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Dashboard - Detector de Rostros LBP</title>
+  <title>Dashboard - Detector de Rostros LBP y SIFT</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
-
-
 </head>
 <body>
   <header>
-    <!-- Logo  -->
     <img class="logo" src="{{ url_for('static', filename='Header.webp') }}" alt="Logo del proyecto">
     <br>
-
-    <!-- Título 1 -->
     <div class="header-title">
       <h1>Detector de Rostros basado en Local Binary Patterns (LBP)</h1>
     </div>
-
     <p class="description">
       Aplicación web que anonimiza de manera segura los rostros detectados capturados desde el servidor móvil, asegurando la protección y privacidad de las personas.
     </p>
-    <div class="results">Streaming</div>
+    <div class="results">Streaming LBP</div>
   </header>
 
   <main>
@@ -33,7 +27,7 @@
     <p>
       En esta sección se detectarán objetos utilizando la técnica SIFT, que analizará las imágenes capturadas en tiempo real para identificar y localizar los objetos seleccionados.
     </p>
-    <div class="results">Streaming</div>
+    <div class="results">Streaming SIFT</div>
   </section>
 
   <main>
@@ -46,10 +40,12 @@
     const outLBP = document.getElementById('out');
     const outSIFT = document.getElementById('out-sift');
 
+    // LBP por WebSocket
     socket.on('processed_frame', data => {
       outLBP.src = data.image;
     });
 
+    // SIFT por WebSocket
     socket.on('sift_frame', data => {
       outSIFT.src = data.image;
     });
