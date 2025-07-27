@@ -16,6 +16,10 @@
       Aplicación web que anonimiza de manera segura los rostros detectados capturados desde el servidor móvil, asegurando la protección y privacidad de las personas.
     </p>
     <div class="results">Streaming LBP</div>
+      <div class="stats">
+    <p>FPS: <span id="fps">0</span></p>
+    <p>Memoria: <span id="mem">0</span> MB</p>
+    </div>
   </header>
 
   <main>
@@ -28,7 +32,13 @@
       En esta sección se detectarán objetos utilizando la técnica SIFT, que analizará las imágenes capturadas en tiempo real para identificar y localizar los objetos seleccionados.
     </p>
     <div class="results">Streaming SIFT</div>
+    <div class="results">Streaming LBP</div>
+      <div class="stats">
+    <p>FPS: <span id="fps">0</span></p>
+    <p>Memoria: <span id="mem">0</span> MB</p>
+    </div>
   </section>
+  
 
   <main>
     <img id="out-sift" class="stream" alt="Frames capturados en vivo (SIFT)" />
@@ -49,6 +59,12 @@
     socket.on('sift_frame', data => {
       outSIFT.src = data.image;
     });
+
+     // Estadísticas: FPS y uso de memoria
+  socket.on('stats', data => {
+    document.getElementById('fps').textContent = data.fps;
+    document.getElementById('mem').textContent = data.mem;
+  });
   </script>
 </body>
 </html>

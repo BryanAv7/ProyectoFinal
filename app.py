@@ -5,6 +5,7 @@ import numpy as np
 import base64
 import threading
 import time
+import psutil
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
@@ -26,6 +27,11 @@ kp_logo, des_logo = sift.detectAndCompute(logo, None)
 # Frame compartido
 last_frame = None
 frame_lock = threading.Lock()
+
+# Medición de FPS y memoria
+last_time = time.time()
+fps = 0
+process = psutil.Process()
 
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Rutas de la aplicación
@@ -73,6 +79,7 @@ def stream():
 # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 def process_with_lbp_and_emit(frame):
+    global last_time, fps
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, minSize=(38, 46))
 
@@ -88,6 +95,16 @@ def process_with_lbp_and_emit(frame):
 
     socketio.emit('processed_frame', {'image': output_image})
 
+    # Medición de FPS y memoria
+    current_time = time.time()
+    fps = 1.0 / (current_time - last_time)
+    last_time = current_time
+
+    mem_usage = process.memory_info().rss / (1024 * 1024)  # en MB
+    socketio.emit('stats', {
+        'fps': round(fps, 2),
+        'mem': round(mem_usage, 2)
+    })
 
 def process_frame_sift(frame):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -119,7 +136,6 @@ def process_frame_sift(frame):
         frame_with_matches[y_offset:y_offset+100, x_offset:x_offset+100] = logo_resized
 
     return frame_with_matches
-
 
 def mjpeg_generator():
     global last_frame
