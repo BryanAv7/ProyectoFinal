@@ -108,34 +108,53 @@ def process_with_lbp_and_emit(frame):
 
 def process_frame_sift(frame):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
     kp_frame, des_frame = sift.detectAndCompute(gray_frame, None)
+    
+    if des_logo is None or des_frame is None or len(kp_frame) < 10:
+        # Si no hay suficientes puntos, mostrar solo el logo al lado del frame
+        h, w = frame.shape[:2]
+        result = np.zeros((max(h, logo.shape[0]), w + logo.shape[1], 3), dtype=np.uint8)
+        result[:logo.shape[0], :logo.shape[1]] = logo[:, :, :3]  # Logo (sin canal alpha si existe)
+        result[:h, logo.shape[1]:logo.shape[1]+w] = frame
+        return result
 
-    if des_logo is None or des_frame is None:
-        # No se pueden hacer matches, devolver el frame sin matches
-        return frame
+    # Configurar FLANN matcher
+    FLANN_INDEX_KDTREE = 1
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+    
+    matches = flann.knnMatch(des_logo, des_frame, k=2)
 
-    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-    matches = bf.match(des_logo, des_frame)
+    # Filtrar matches pero mantener más coincidencias
+    good_matches = []
+    colors = []
+    
+    for i, (m, n) in enumerate(matches):
+        if m.distance < 0.8 * n.distance: 
+            good_matches.append(m)
+            colors.append((np.random.randint(100, 255), 
+                         np.random.randint(100, 255),
+                         np.random.randint(100, 255)))
 
-    frame_with_matches = cv2.drawMatches(logo, kp_logo, frame, kp_frame, matches, None, flags=2)
+    # Preparar imagen resultado (logo + frame actual)
+    h, w = frame.shape[:2]
+    result = np.zeros((max(h, logo.shape[0]), w + logo.shape[1], 3), dtype=np.uint8)
+    result[:logo.shape[0], :logo.shape[1]] = logo[:, :, :3]  # Logo a la izquierda
+    result[:h, logo.shape[1]:logo.shape[1]+w] = frame  # Frame a la derecha
 
-    # Superponer logo
-    logo_resized = cv2.resize(logo, (100, 100))
-    h, w, _ = frame.shape
-    x_offset = (w - 100) // 2
-    y_offset = 10
+    # Dibujar líneas de conexión entre matches
+    if len(good_matches) > 0:
+        for i, match in enumerate(good_matches):
+            pt1 = tuple(np.round(kp_logo[match.queryIdx].pt).astype(int))
+            pt2 = tuple(np.round(kp_frame[match.trainIdx].pt).astype(int) + np.array([logo.shape[1], 0]))
+            
+            cv2.line(result, pt1, pt2, colors[i], 2)
+            cv2.circle(result, pt1, 5, colors[i], -1)
+            cv2.circle(result, pt2, 5, colors[i], -1)
 
-    if logo_resized.shape[2] == 4:
-        alpha_channel = logo_resized[:, :, 3] / 255.0
-        for c in range(3):
-            frame_with_matches[y_offset:y_offset+100, x_offset:x_offset+100, c] = (
-                alpha_channel * logo_resized[:, :, c] +
-                (1 - alpha_channel) * frame_with_matches[y_offset:y_offset+100, x_offset:x_offset+100, c]
-            )
-    else:
-        frame_with_matches[y_offset:y_offset+100, x_offset:x_offset+100] = logo_resized
-
-    return frame_with_matches
+    return result
 
 def mjpeg_generator():
     global last_frame
